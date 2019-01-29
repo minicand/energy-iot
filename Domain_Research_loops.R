@@ -304,25 +304,26 @@ ts.hour <- ts(bylist[[2]]$global_active_power, frequency = 8760, start = c(2006,
 ts.day <- ts(bylist[[3]]$global_active_power, frequency = 365, start = c(2006, 350))
 ts.week <- ts(bylist[[4]]$global_active_power, frequency = 52, start = c(2006, 51))
 ts.month <- ts(bylist[[5]]$global_active_power, frequency = 12, start = c(2006,11))
+msts.day <- msts(bylist[[3]]$global_active_power, seasonal.periods = c(7,365.25), start = c(2006, 350))
 
-
-msts.day <- msts(bylist[[3]]$global_active_power, seasonal.periods = c())
-msts.month <- msts(bylist[[5]]$global_active_power, )
 tail(ts.week)
 autoplot(ts.hour, ts.colour= 'pink', xlab= 'Time', ylab= 'Power(Whour)')
 autoplot(ts.day, ts.colour= 'purple', xlab= 'Time', ylab= 'Power(Whour)')
 autoplot(ts.week, ts.colour= 'magenta', xlab= 'Time', ylab= 'Power(Whour)')
 autoplot(ts.month, ts.colour= 'blue', xlab= 'Time', ylab= 'Power(Whour)')
+autoplot(msts.day, xlab= 'Time', ylab= 'Power(Whour)')
 
 ### Train and Test Sets
 ts.hour.tr <- window(ts.hour, start=c(2007,1), end=2010)
 ts.day.tr <- window(ts.day, start=c(2007,1), end=c(2009,365))
 ts.week.tr <- window(ts.week, start=c(2007,1), end=c(2009,52))
 ts.month.tr <- window(ts.month, start=c(2007,1), end=c(2009,12))
+msts.day.tr <- window(msts.day, start=c(2007,1), end=c(2009,365))
 ts.hour.te <- window(ts.hour, start=c(2010,1))
 ts.day.te <- window(ts.day, start=c(2010,1))
 ts.week.te <- window(ts.week, start=c(2010,1))
 ts.month.te <- window(ts.month, start=c(2010,1))
+msts.day.te <- window(msts.day, start=c(2010,1))
 
 ### DECOMPOSING
 ## with STL - Loess decomposition
@@ -341,7 +342,7 @@ mean(rem.hour)/mean(ts.hour)
 mean(rem.day)/mean(ts.day)
 mean(rem.week)/mean(ts.week)
 mean(rem.month)/mean(ts.month)
-
+mean(abs(remainder(mstl(msts.day, s.window = "periodic"))))/mean(msts.day)
 
 ### MODELING
 ## Linear model
@@ -353,10 +354,8 @@ fitHW <- HoltWinters(ts.month.tr)
 summary(fitHW)
 
 ## Auto ARIMA
-fitAA <- auto.arima(ts.month.tr)  # Warning message:
+fitAA <- arima(ts.month.tr, order= c(0,0,1), seasonal = c(1,1,0))  
 summary(fitAA)
-# In value[[3L]](cond) :
-#  The chosen test encountered an error, so no seasonal differencing is selected. Check the time series data.
 
 ## LSTM
 
@@ -364,33 +363,43 @@ summary(fitAA)
 
 ### FORECASTING
 ## Linear Model 
-forecastLM <- forecast(fitLM, h=11, level=c(80,90))
+forecastLM <- forecast(fitLM, h=10, level=c(80,90))
 ## Holt Winters
-forecastHW <- forecast(fitHW, h=11, level=c(80,90))
+forecastHW <- forecast(fitHW, h=10, level=c(80,90))
 ## Auto ARIMA
-forecastAA <- forecast(fitAA, h=11, level=c(80,90))
+forecastAA <- forecast(fitAA, h=10, level=c(80,90))
 ## LSTM
 
-## Compare accuracy
+
+## Compare accuracies
 accuracy(forecastLM, ts.month.te)
 accuracy(forecastHW, ts.month.te)
 accuracy(forecastAA, ts.month.te)
+
 ## Cross validation
 ts.month %>% tsCV(forecastfunction= arima, h=11) -> e
 e^2 %>% mean(na.rm=TRUE) %>% sqrt()
 
 ### AUTOLAYER to combine all model forecasts in one graph
-autoplot(ts.month, series= "Real") +
+autoplot(ts.month, series= "Real")+  # Error: Invalid input: date_trans works with objects of class Date only
   autolayer(forecastLM, series= "Real2")+
   autolayer(forecastHW, series= "Real3")+
   autolayer(forecastAA, series= "Real4")+
   guides(color= guide_legend(title= "dk"))
 
-
-autoplot(forecastHW)
+autoplot(forecastAA, series= "Real4")
+autoplot(forecastHW)+
 autoplot(forecastAA)
 
 
+library(scales)
+autoplot(forecastAA, series= "Real4") + 
+  scale_x_date(date_breaks = "1 month", 
+               labels=date_format("%b-%Y"),
+               limits = as.Date(c('2010-01-01','2010-09-01')))
+
+class(ts.month.te)
+class(forecastAA)
 ####REMOVING AND ADDING SEASONALITY####
 # #1
 # ts.by.day1.adjusted <- ts.by.day1 - components.by.day1$seasonal
