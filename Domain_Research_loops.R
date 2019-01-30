@@ -12,6 +12,7 @@ install.packages("LearnBayes")
 install.packages("AlgDesign")
 library("DALEX")
 
+
 ## Heatmap
 source("http://blog.revolutionanalytics.com/downloads/calendarHeat.R")
 calendarHeat(newDF$Date, newDF0610$global_active_power)
@@ -109,6 +110,33 @@ newDF.nona$day <- day(newDF.nona$DateTime)
 newDF.nona$month <- month(newDF.nona$DateTime)
 newDF.nona$week <- week(newDF.nona$DateTime)
 
+# Put prices in
+newDF.nona[,13:18] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power, 
+                              Sub_metering_1, Sub_metering_2, Sub_metering_3, non_subbed),
+                         funs(./1000*0.1483)
+                         )
+# Peak hours tariff
+newDF.nona[,19:24] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power,
+                                 Sub_metering_1, Sub_metering_2, Sub_metering_3, non_subbed
+                                 ),
+                            funs(ifelse(hour(newDF.nona$DateTime) > 6 | hour(newDF.nona$DateTime) < 22, ./1000*0.1593, ./1000*0.1244
+                                        )
+                                 )
+                            )
+
+
+costlist <- c()
+timelist3 <- list("day", "week", "month", "year")
+for (i in timelist3){
+  costlist[[i]]  <- newDF.nona %>% group_by(cut(DateTime, i)) %>%
+    dplyr::summarize_at(vars(global_active_power.1, global_reactive_power.1, 
+                             Sub_metering_1.1, Sub_metering_2.1, Sub_metering_3.1, non_subbed.1), funs(sum)) 
+  colnames(costlist[[i]])[1] <- "DateTime"
+}
+costlist[[4]]$DateTime <- c('2006','2007','2008','2009','2010')
+
+head(costlist[[4]])
+head(costlist[[1]])
 
 #### TASK 1- 2 ####
 ## Voltage volatility
@@ -150,6 +178,22 @@ plotly.we
 # Kind of like facet_grid of ggplot
 p <- subplot(plotly.wd, plotly.we, titleX = TRUE) 
 p
+# Day by hour for dashboard
+tail(bylist[[2]])
+lastdaybh <- bylist[[2]][(nrow(bylist[[2]])-21):nrow(bylist[[2]]),]
+lastdaybh$DateTime <- hour(lastdaybh$DateTime)
+plotly.dbyh <- plot_ly(lastdaybh, x = ~lastdaybh$DateTime, 
+                     y = ~lastdaybh$Sub_metering_1, 
+                     name = 'Kitchen', 
+                     type = 'scatter', 
+                     mode = 'lines') %>%
+  add_trace(y = ~lastdaybh$Sub_metering_2, name = 'Laundry Room', mode = 'lines') %>%
+  add_trace(y = ~lastdaybh$Sub_metering_3, name = 'Boiler & AC', mode = 'lines') %>%
+  add_trace(y = ~lastdaybh$non_subbed, name = 'Not Sub-metered', mode = 'lines') %>%
+  layout(title = "Daily Power Consumption <br> (Current Day)",
+         xaxis = list(title = "Hours"),
+         yaxis = list (title = "Power (wh)"))
+plotly.dbyh
 
 # Choose a random day
 house.day.by15 <- by15[961:1057,]  # use xts package
@@ -271,17 +315,30 @@ house.month <- filter(bylist[[3]], year == 2010 & month == 11)
 plotly.mbyd <- plot_ly(house.month, x = ~house.month$DateTime,
                            y = ~house.month$Sub_metering_1/ 1000,
                            name = 'Kitchen',
-                           mode = 'lines') %>%
-  add_trace(y = ~house.month$Sub_metering_1/ 1000, name = 'Kitchen', mode = 'lines') %>%
-  add_trace(y = ~house.month$Sub_metering_2/ 1000, name = 'Laundry Room', mode = 'bars') %>%
-  add_trace(y = ~house.month$Sub_metering_3/ 1000, name = 'Boiler & AC', mode = 'bars') %>%
-  add_trace(y = ~house.month$non_subbed/ 1000, name = 'Not sub-metered', mode = 'bars') %>%
-  add_trace(y = ~house.month$global_active_power/ 1000, name = 'Total', mode = 'bars') %>%
+                           mode = 'bar') %>%
+  add_trace(y = ~house.month$Sub_metering_1/ 1000, name = 'Kitchen', mode = 'bar') %>%
+  add_trace(y = ~house.month$Sub_metering_2/ 1000, name = 'Laundry Room', mode = 'bar') %>%
+  add_trace(y = ~house.month$Sub_metering_3/ 1000, name = 'Boiler & AC', mode = 'bar') %>%
+  add_trace(y = ~house.month$non_subbed/ 1000, name = 'Not sub-metered', mode = 'bar') %>%
+  add_trace(y = ~house.month$global_active_power/ 1000, name = 'Total', mode = 'bar') %>%
   layout(title = "Daily Power Consumption <br> (Current Month)",
          xaxis = list(title = "Days"),
          yaxis = list (title = "Power (Kwh)"))
 plotly.mbyd
 
+plotly.wbyd <- plot_ly(house.month[20:26,], x = ~house.month[20:26,]$DateTime,
+                       y = ~house.month$Sub_metering_1/ 1000,
+                       name = 'Kitchen',
+                       mode = 'bar') %>%
+  add_trace(y = ~house.month[20:26,]$Sub_metering_1/ 1000, name = 'Kitchen', mode = 'bar') %>%
+  add_trace(y = ~house.month[20:26,]$Sub_metering_2/ 1000, name = 'Laundry Room', mode = 'bar') %>%
+  add_trace(y = ~house.month[20:26,]$Sub_metering_3/ 1000, name = 'Boiler & AC', mode = 'bar') %>%
+  add_trace(y = ~house.month[20:26,]$non_subbed/ 1000, name = 'Not sub-metered', mode = 'bar') %>%
+  add_trace(y = ~house.month[20:26,]$global_active_power/ 1000, name = 'Total', mode = 'bar') %>%
+  layout(title = "Daily Power Consumption <br> (Current Week)",
+         xaxis = list(title = "Days"),
+         yaxis = list (title = "Power (Kwh)"))
+plotly.wbyd
 
 # ## Polar visualization by month
 # # Time series for monthly total power usage by year
@@ -381,15 +438,14 @@ ts.month %>% tsCV(forecastfunction= arima, h=11) -> e
 e^2 %>% mean(na.rm=TRUE) %>% sqrt()
 
 ### AUTOLAYER to combine all model forecasts in one graph
-autoplot(ts.month, series= "Real")+  # Error: Invalid input: date_trans works with objects of class Date only
-  autolayer(forecastLM, series= "Real2")+
-  autolayer(forecastHW, series= "Real3")+
-  autolayer(forecastAA, series= "Real4")+
+autoplot(ts.month, series= "Real")+ 
+  autolayer(forecastLM, series= "LM", PI= FALSE)+
+  autolayer(forecastHW, series= "HW")+
+  autolayer(forecastAA, series= "ARIMA")+
   guides(color= guide_legend(title= "dk"))
 
-autoplot(forecastAA, series= "Real4")
-autoplot(forecastHW)+
-autoplot(forecastAA)
+autoplot(ts.month.te, series= "Real")
+autoplot(forecastLM, series= "LM")
 
 
 library(scales)
@@ -400,6 +456,8 @@ autoplot(forecastAA, series= "Real4") +
 
 class(ts.month.te)
 class(forecastAA)
+
+
 ####REMOVING AND ADDING SEASONALITY####
 # #1
 # ts.by.day1.adjusted <- ts.by.day1 - components.by.day1$seasonal
