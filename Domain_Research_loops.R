@@ -12,6 +12,9 @@ install.packages("LearnBayes")
 install.packages("AlgDesign")
 library("DALEX")
 
+install.packages("forecast")
+install.packages("xts")
+library(forecast)
 
 ## Heatmap
 source("http://blog.revolutionanalytics.com/downloads/calendarHeat.R")
@@ -411,14 +414,14 @@ fitHW <- HoltWinters(ts.month.tr)
 summary(fitHW)
 
 ## Auto ARIMA
-fitAA <- arima(ts.month.tr, order= c(0,0,1), seasonal = c(1,1,0))  
+fitAA <- arima(ts.month.tr, order= c(0,0,1), seasonal = c(1,1,0)) 
 summary(fitAA)
 
 ## LSTM
 
 
 
-### FORECASTING
+### FORECASTING model comparison
 ## Linear Model 
 forecastLM <- forecast(fitLM, h=10, level=c(80,90))
 ## Holt Winters
@@ -433,30 +436,21 @@ accuracy(forecastLM, ts.month.te)
 accuracy(forecastHW, ts.month.te)
 accuracy(forecastAA, ts.month.te)
 
-## Cross validation
-ts.month %>% tsCV(forecastfunction= arima, h=11) -> e
-e^2 %>% mean(na.rm=TRUE) %>% sqrt()
-
 ### AUTOLAYER to combine all model forecasts in one graph
-autoplot(ts.month, series= "Real")+ 
-  autolayer(forecastLM, series= "LM", PI= FALSE)+
-  autolayer(forecastHW, series= "HW")+
-  autolayer(forecastAA, series= "ARIMA")+
-  guides(color= guide_legend(title= "dk"))
+autoplot(ts.month, series = "Real")+ 
+  autolayer(forecastLM, series = "LM", PI= FALSE)+
+  autolayer(forecastHW, series = "HW")+
+  autolayer(forecastAA, series = "ARIMA")+
+  guides(color= guide_legend(title = "dk"))
 
 autoplot(ts.month.te, series= "Real")
 autoplot(forecastLM, series= "LM")
 
-
-library(scales)
-autoplot(forecastAA, series= "Real4") + 
-  scale_x_date(date_breaks = "1 month", 
-               labels=date_format("%b-%Y"),
-               limits = as.Date(c('2010-01-01','2010-09-01')))
-
-class(ts.month.te)
-class(forecastAA)
-
+### Forecasting with chosen model (HW)
+fitHW2 <- HoltWinters(ts.month)
+forecastHW2 <- forecast(fitHW2, h=3, level=c(80,90))
+autoplot(ts.month, series= "Real")+
+  autolayer(forecastHW2, series = "HW")
 
 ####REMOVING AND ADDING SEASONALITY####
 # #1
