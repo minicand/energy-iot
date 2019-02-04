@@ -30,7 +30,7 @@ ui <- dashboardPage(skin = "green",
                     valueBoxOutput("kitchenvb", width = 2),
                     valueBoxOutput("nonsubvb", width = 2)
                     ),
-              
+            
               fluidRow(
                 box(width = 5,
                     plotlyOutput("plotlypie"),
