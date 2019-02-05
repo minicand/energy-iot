@@ -9,7 +9,7 @@ ui <- dashboardPage(skin = "green",
   dashboardSidebar(
     sidebarMenu(id = "First Sidebar",  # to call it in another app later
       menuItem("Current Rate", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Peak-hours Rate", tabName = "widgets", icon = icon("dashboard"), 
+      menuItem("Peak-hours Rate", tabName = "db2", icon = icon("dashboard"), 
                badgeLabel = "try me", badgeColor = "green"),
       
       selectInput(inputId="select1", label = "Select time period", 
@@ -43,7 +43,7 @@ ui <- dashboardPage(skin = "green",
               ),
       
       # Second tab content
-      tabItem(tabName = "dashboard2",
+      tabItem(tabName = "db2",
               h2("Peakhour rates (These would be your costs if you had Peakhour rates)"),
               fluidRow(
                         valueBoxOutput("totalvb2", width = 4),
@@ -185,10 +185,6 @@ server <- function(input, output) {
  
       
       
-      
-      
-      
-      
       # Output for valuebox GAP2
       output$totalvb2 <- renderValueBox({
         valueBox(
@@ -199,57 +195,65 @@ server <- function(input, output) {
       })
       
       # Output for valuebox HVAC2
-      output$hvacvb <- renderValueBox({
+      output$hvacvb2 <- renderValueBox({
         valueBox(
-          fValuebox(granul[[input$select1]], "Sub_metering_3.1", input$select2),
+          fValuebox(granul[[input$select1]], "Sub_metering_3.2", input$select2),
           "HVAC", icon = icon("leaf"), color = "green"
         )
       })
       
       # Output for valuebox Laundry2
-      output$laundryvb <- renderValueBox({
+      output$laundryvb2 <- renderValueBox({
         valueBox(
-          fValuebox(granul[[input$select1]], "Sub_metering_2.1", input$select2),
+          fValuebox(granul[[input$select1]], "Sub_metering_2.2", input$select2),
           "Laundry", icon = icon("certificate"), color = "green"
         )
       })
       
       # Output for valuebox Kitchen2
-      output$kitchenvb <- renderValueBox({
+      output$kitchenvb2 <- renderValueBox({
         valueBox(
-          fValuebox(granul[[input$select1]], "Sub_metering_1.1", input$select2),
+          fValuebox(granul[[input$select1]], "Sub_metering_1.2", input$select2),
           "Kitchen", icon = icon("cutlery"), color = "green"
         )
       })
       
       # Output for valuebox Non-subbed2
       output$nonsubvb2 <- renderValueBox({
-        if(input$select1== "Daily"){
-          valueBox(
-            paste0(round(costlist[[1]]$non_subbed.2[costlist[[1]]$DateTime == input$select2], 2), "€"),
-            "Rest2", icon = icon("credit-card"), color = "green"
-          )
-        } else {
-          
-          if(input$select1== "Weekly"){
-            valueBox(
-              paste0(round(costlist[[2]]$non_subbed.2[costlist[[2]]$DateTime == input$select2], 2), "€"),
-              "Rest2", icon = icon("credit-card"), color = "green"
-            )
-          } else {
-            if(input$select1== "Monthly"){
-              valueBox(
-                paste0(round(costlist[[3]]$non_subbed.2[costlist[[3]]$DateTime == input$select2], 2), "€"),
-                "Rest2", icon = icon("credit-card"), color = "green"
-              )
-            } else {
-              valueBox(
-                paste0(round(costlist[[4]]$non_subbed.2[costlist[[4]]$DateTime == input$select2], 2), "€"),
-                "Rest2", icon = icon("credit-card"), color = "green")
-            }
-          }
-        }
+        valueBox(
+          fValuebox(granul[[input$select1]], "non_subbed.2", input$select2),
+          "Rest", icon = icon("credit-card"), color = "green"
+        )
       })
+      
+      # # Output for valuebox Non-subbed2
+      # output$nonsubvb2 <- renderValueBox({
+      #   if(input$select1== "Daily"){
+      #     valueBox(
+      #       paste0(round(costlist[[1]]$non_subbed.2[costlist[[1]]$DateTime == input$select2], 2), "€"),
+      #       "Rest2", icon = icon("credit-card"), color = "green"
+      #     )
+      #   } else {
+      #     
+      #     if(input$select1== "Weekly"){
+      #       valueBox(
+      #         paste0(round(costlist[[2]]$non_subbed.2[costlist[[2]]$DateTime == input$select2], 2), "€"),
+      #         "Rest2", icon = icon("credit-card"), color = "green"
+      #       )
+      #     } else {
+      #       if(input$select1== "Monthly"){
+      #         valueBox(
+      #           paste0(round(costlist[[3]]$non_subbed.2[costlist[[3]]$DateTime == input$select2], 2), "€"),
+      #           "Rest2", icon = icon("credit-card"), color = "green"
+      #         )
+      #       } else {
+      #         valueBox(
+      #           paste0(round(costlist[[4]]$non_subbed.2[costlist[[4]]$DateTime == input$select2], 2), "€"),
+      #           "Rest2", icon = icon("credit-card"), color = "green")
+      #       }
+      #     }
+      #   }
+      # })
 }
 
 
