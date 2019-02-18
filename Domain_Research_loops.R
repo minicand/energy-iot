@@ -4,13 +4,6 @@ pacman::p_load(lattice, ggplot2, caret, corrplot, dplyr, tidyr, devtools, DALEX,
                plotly, party, rsconnect, ggridges, RMySQL, imputeTS,
                lubridate, padr, RColorBrewer, fpp2, forecast, shinydashboard, esquisse,
                seasonal, keras)
-install_github("ropensci/drake")
-
-install.packages("DALEX")
-install.packages("questionr")
-install.packages("LearnBayes")
-install.packages("AlgDesign")
-library("DALEX")
 
 install.packages("forecast")
 install.packages("xts")
@@ -67,8 +60,9 @@ newDF0610 <- newDF0610[,c(ncol(newDF0610), 1:(ncol(newDF0610)-1))]
 newDF$DateTime <- as.POSIXct(newDF$DateTime, "%Y/%m/%d %H:%M:%S")
 newDF0610$DateTime <- as.POSIXct(newDF0610$DateTime, "%Y/%m/%d %H:%M:%S")
 
-# newDF0610$global_reactive_power <- newDF0610$global_reactive_power * 1000 / 60
-# newDF0610[2:3] <- round(newDF0610[2:3], 2)
+newDF0610$global_active_power <- newDF0610$global_active_power * 1000 / 60
+newDF0610$global_reactive_power <- newDF0610$global_reactive_power * 1000 / 60
+newDF0610[2:3] <- round(newDF0610[2:3], 2)
 
 # New column for non-subbed
 newDF0610$non_subbed <- newDF0610$global_active_power - newDF0610$Sub_metering_1 - 
@@ -98,7 +92,6 @@ max(newDF$Sub_metering_1)
 mean(newDF$Sub_metering_1[newDF$year == 2007])
 mean(newDF$Sub_metering_1)
 
-
 # Replace missing data with NAs
 newDF.na <- pad(newDF0610, break_above = 3000000)
 summary(is.na(newDF.na))
@@ -107,19 +100,19 @@ summary(is.na(newDF.na))
 newDF.nona <- na.kalman(newDF.na)
 
 # Clean date and time columns 
-newDF.nona <- newDF.nona[-c(7:10)]
 newDF.nona$year <- year(newDF.nona$DateTime)
 newDF.nona$day <- day(newDF.nona$DateTime)
 newDF.nona$month <- month(newDF.nona$DateTime)
 newDF.nona$week <- week(newDF.nona$DateTime)
 
 # Put prices in
-newDF.nona[,13:18] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power, 
+newDF.nona[,14:19] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power, 
                               Sub_metering_1, Sub_metering_2, Sub_metering_3, non_subbed),
                          funs(./1000*0.1483)
                          )
+
 # Peak hours tariff
-newDF.nona[,19:24] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power,
+newDF.nona[,20:25] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power,
                                  Sub_metering_1, Sub_metering_2, Sub_metering_3, non_subbed
                                  ),
                             funs(ifelse(hour(newDF.nona$DateTime) > 6 | hour(newDF.nona$DateTime) < 22, ./1000*0.1593, ./1000*0.1244
@@ -133,7 +126,10 @@ timelist3 <- list("day", "week", "month", "year")
 for (i in timelist3){
   costlist[[i]]  <- newDF.nona %>% group_by(cut(DateTime, i)) %>%
     dplyr::summarize_at(vars(global_active_power.1, global_reactive_power.1, 
-                             Sub_metering_1.1, Sub_metering_2.1, Sub_metering_3.1, non_subbed.1), funs(sum)) 
+                             Sub_metering_1.1, Sub_metering_2.1, Sub_metering_3.1, non_subbed.1,
+                             global_active_power.2, global_reactive_power.2, 
+                             Sub_metering_1.2, Sub_metering_2.2, Sub_metering_3.2, non_subbed.2), 
+                        funs(sum)) 
   colnames(costlist[[i]])[1] <- "DateTime"
 }
 costlist[[4]]$DateTime <- c('2006','2007','2008','2009','2010')
@@ -274,7 +270,7 @@ target <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 by.weekday <- by.weekday[match(target, by.weekday$weekday),]
 
 
-# Correct the order!!!!
+# Plotly for weekdays
 plotly.weekdays <- plot_ly(by.weekday, x = ~factor(by.weekday$weekday,
                                                    labels = c("Monday", "Tuesday", "Wednesday",
                                                               "Thursday", "Friday", "Saturday", "Sunday")), 
@@ -413,15 +409,11 @@ summary(fitLM)
 fitHW <- HoltWinters(ts.month.tr)
 summary(fitHW)
 
-
 ## Auto ARIMA
 auto.arima(ts.month.tr)
 auto.arima(ts.month)
 fitAA <- arima(ts.month.tr, order= c(0,0,1), seasonal = c(1,1,0)) 
 summary(fitAA)
-
-## LSTM
-
 
 
 ### FORECASTING model comparison
@@ -431,7 +423,6 @@ forecastLM <- forecast(fitLM, h=10, level=c(80,90))
 forecastHW <- forecast(fitHW, h=10, level=c(80,90))
 ## Auto ARIMA
 forecastAA <- forecast(fitAA, h=10, level=c(80,90))
-## LSTM
 
 
 ## Compare accuracies
@@ -454,21 +445,3 @@ fitHW2 <- HoltWinters(ts.month)
 forecastHW2 <- forecast(fitHW2, h=3, level=c(80,90))
 autoplot(ts.month, series= "Real")+
   autolayer(forecastHW2, series = "HW")
-
-####REMOVING AND ADDING SEASONALITY####
-# #1
-# ts.by.day1.adjusted <- ts.by.day1 - components.by.day1$seasonal
-# autoplot(ts.by.day1.adjusted)
-# # Holt winters exponential smoothing
-# ts.by.day1.HW <- HoltWinters(ts.by.day1.adjusted, gamma=FALSE)
-# plot(ts.by.day1.HW, ylim = c(-5000, 10000))
-# # HoltWinters forecast & plot
-# ts.by.day1.HWfor <- forecast(ts.by.day1.HW, h=30)
-# plot(ts.by.day1.HWfor, ylim = c(0, 5000), ylab= "Watt-Hours", xlab="Time - Sub-meter 1")
-# # Add back the seasonality
-# fcseas <- forecast(components.by.day1$seasonal, h=30)
-# ts.by.day1.HWfor$mean <- ts.by.day1.HWfor$mean + fcseas$mean
-# ts.by.day1.HWfor$lower <- ts.by.day1.HWfor$lower + fcseas$lower
-# ts.by.day1.HWfor$upper <- ts.by.day1.HWfor$upper + fcseas$upper
-# summary(ts.by.day1.HWfor)
-# summary(ts.by.day2.HWfor)
