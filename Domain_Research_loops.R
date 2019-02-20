@@ -422,7 +422,7 @@ auto.arima(ts.month.tr)
 auto.arima(ts.month)
 fitAA <- arima(ts.month.tr, order= c(0,0,1), seasonal = c(1,1,0)) 
 summary(fitAA)
-
+getwd()
 
 ### FORECASTING model comparison
 ## Linear Model 

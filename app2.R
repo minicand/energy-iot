@@ -8,6 +8,7 @@ rsconnect::setAccountInfo(name='deniz',
                           token='77C096A0EBB84DE88B05C2D32C65B80F', 
                           secret='J59lEshRsj6ckEQOUEsjL5BX67n4GBGpEBE6xysH')
 rsconnect::deployApp()
+rsconnect::showLogs()
 
 # Restore objects
 plotly.pie <- readRDS("ppie.rds")
@@ -18,7 +19,6 @@ plotly.yearly <- readRDS("pyearly.rds")
 costlist <- readRDS("costlist.rds")
 plotly.weekdays <- readRDS("pwd.rds")
 load("shinydata.RData")
-
 
 ui <- dashboardPage(skin = "green",
                     
