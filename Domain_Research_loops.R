@@ -288,6 +288,9 @@ plotly.weekdays <- plot_ly(by.weekday, x = ~factor(by.weekday$weekday,
          yaxis = list (title = "Power (watt-hours)"))
 plotly.weekdays # do something with the colors
 
+# Save it to a file
+saveRDS(plotly.weekdays, "pwd.rds")
+
 # ggplot facet_grid by meter
 by.day.melted <- gather(bylist[[3]], "Sub_metering_1","Sub_metering_2","Sub_metering_3",
                         "global_active_power", "non_subbed", key= "Meter", value= "Power")
@@ -352,7 +355,8 @@ saveRDS(plotly.wbyd, "pwbyd.rds")
 
 ggplot(by.day.melted, aes(x=factor(DateTime_year), y=global_active_power)) + geom_boxplot(outlier.colour = "red")
 
-
+# Save multiple objects
+save(plotly.wbyd, plotly.mbyd, plotly.dbyh, house.month, bylist, costlist, lastdaybh, plotly.yearly, plotly.pie, file = "shinydata.RData")
 
 #### TASK 2 - TIME SERIES ####
 

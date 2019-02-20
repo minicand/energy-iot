@@ -1,18 +1,12 @@
 ## app.R ##
 library(shiny)
 library(shinydashboard)
+pacman::p_load(shiny, shinydashboard, rsconnect, Rcpp, RcppRoll, SQUAREM, plotly)
 
 # Shinyapps.io
-install.packages('rsconnect')
-install.packages('RcppRoll')
-install.packages('SQUAREM')
-library('SQUAREM')
-library('RcppRoll')
-
 rsconnect::setAccountInfo(name='deniz', 
                           token='77C096A0EBB84DE88B05C2D32C65B80F', 
                           secret='J59lEshRsj6ckEQOUEsjL5BX67n4GBGpEBE6xysH')
-library ('rsconnect')
 rsconnect::deployApp()
 
 # Restore objects
@@ -22,6 +16,9 @@ plotly.wbyd <- readRDS("pwbyd.rds")
 plotly.mbyd <- readRDS("pmbyd.rds")
 plotly.yearly <- readRDS("pyearly.rds")
 costlist <- readRDS("costlist.rds")
+plotly.weekdays <- readRDS("pwd.rds")
+load("shinydata.RData")
+
 
 ui <- dashboardPage(skin = "green",
                     
