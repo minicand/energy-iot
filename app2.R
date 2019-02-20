@@ -2,6 +2,27 @@
 library(shiny)
 library(shinydashboard)
 
+# Shinyapps.io
+install.packages('rsconnect')
+install.packages('RcppRoll')
+install.packages('SQUAREM')
+library('SQUAREM')
+library('RcppRoll')
+
+rsconnect::setAccountInfo(name='deniz', 
+                          token='77C096A0EBB84DE88B05C2D32C65B80F', 
+                          secret='J59lEshRsj6ckEQOUEsjL5BX67n4GBGpEBE6xysH')
+library ('rsconnect')
+rsconnect::deployApp()
+
+# Restore objects
+plotly.pie <- readRDS("ppie.rds")
+plotly.dbyh <- readRDS("pdbyh.rds")
+plotly.wbyd <- readRDS("pwbyd.rds")
+plotly.mbyd <- readRDS("pmbyd.rds")
+plotly.yearly <- readRDS("pyearly.rds")
+costlist <- readRDS("costlist.rds")
+
 ui <- dashboardPage(skin = "green",
                     
   dashboardHeader(title = "B2C Dashboard"),

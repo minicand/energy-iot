@@ -3,11 +3,7 @@ library("pacman")
 pacman::p_load(lattice, ggplot2, caret, corrplot, dplyr, tidyr, devtools, DALEX, 
                plotly, party, rsconnect, ggridges, RMySQL, imputeTS,
                lubridate, padr, RColorBrewer, fpp2, forecast, shinydashboard, esquisse,
-               seasonal, keras)
-
-install.packages("forecast")
-install.packages("xts")
-library(forecast)
+               seasonal, keras, forecast, xts)
 
 ## Heatmap
 source("http://blog.revolutionanalytics.com/downloads/calendarHeat.R")
@@ -106,13 +102,13 @@ newDF.nona$month <- month(newDF.nona$DateTime)
 newDF.nona$week <- week(newDF.nona$DateTime)
 
 # Put prices in
-newDF.nona[,14:19] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power, 
+newDF.nona[, 14:19] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power, 
                               Sub_metering_1, Sub_metering_2, Sub_metering_3, non_subbed),
                          funs(./1000*0.1483)
                          )
 
 # Peak hours tariff
-newDF.nona[,20:25] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power,
+newDF.nona[, 20:25] <- newDF.nona %>% transmute_at(vars(global_active_power, global_reactive_power,
                                  Sub_metering_1, Sub_metering_2, Sub_metering_3, non_subbed
                                  ),
                             funs(ifelse(hour(newDF.nona$DateTime) > 6 | hour(newDF.nona$DateTime) < 22, ./1000*0.1593, ./1000*0.1244
@@ -132,10 +128,23 @@ for (i in timelist3){
                         funs(sum)) 
   colnames(costlist[[i]])[1] <- "DateTime"
 }
+# For shiny
 costlist[[4]]$DateTime <- c('2006','2007','2008','2009','2010')
-
+costlist[[3]]$DateTime <- c('2006-12',
+                            '2007-01','2007-02','2007-03','2007-04','2007-05','2007-06',
+                            '2007-07','2007-08','2007-09','2007-10','2007-11','2007-12',
+                            '2008-01','2008-02','2008-03','2008-04','2008-05','2008-06',
+                            '2008-07','2008-08','2008-09','2008-10','2008-11','2008-12',
+                            '2009-01','2009-02','2009-03','2009-04','2009-05','2009-06',
+                            '2009-07','2009-08','2009-09','2009-10','2009-11','2009-12',
+                            '2010-01','2010-02','2010-03','2010-04','2010-05','2010-06',
+                            '2010-07','2010-08','2010-09','2010-10','2010-11')
 head(costlist[[4]])
-head(costlist[[1]])
+tail(costlist[[3]])
+
+# Save it to a file
+saveRDS(costlist, "costlist.rds")
+
 
 #### TASK 1- 2 ####
 ## Voltage volatility
@@ -145,9 +154,21 @@ mean(voltage2010$voltage)
 max(voltage2010$voltage)  # volatility less than +/-6% so OK
 
 ## Subset a day - All observations
-houseDay <- filter(newDF0610, year == 2008 & month == 1 & day == 9)  # weekday
-houseDayWe <- filter(newDF0610, year == 2008 & month == 1 & day == 5)  # weekend
+houseDay <- filter(newDF.nona, year == 2008 & month == 1 & day == 9)  # weekday
+houseDayWe <- filter(newDF.nona, year == 2008 & month == 1 & day == 5)  # weekend
 # houseRd <- sample_n(newDF, 1)  # Random data
+
+## Group data in periods
+bylist <- c()
+timelist <- list("15 mins", "hour", "day", "week", "month", "year")
+for (i in timelist){
+bylist[[i]]  <- newDF.nona %>% group_by(cut(DateTime, i)) %>%
+    dplyr::summarize_at(vars("Sub_metering_1","Sub_metering_2","Sub_metering_3",
+                             "global_active_power", "global_reactive_power", "non_subbed"), funs(sum))  
+colnames(bylist[[i]])[1] <- "DateTime"
+}
+bylist[[6]]$DateTime <- c('2006','2007','2008','2009','2010')
+bylist[[6]]
 
 ## Plot sub-meter 1, 2 and 3 with title, legend and labels - All observations 
 plotly.wd <- plot_ly(houseDay, x = ~houseDay$DateTime, 
@@ -193,34 +214,8 @@ plotly.dbyh <- plot_ly(lastdaybh, x = ~lastdaybh$DateTime,
          xaxis = list(title = "Hours"),
          yaxis = list (title = "Power (wh)"))
 plotly.dbyh
-
-# Choose a random day
-house.day.by15 <- by15[961:1057,]  # use xts package
-house.day.by15$Time <-strftime(house.day.by15$DateTime, format="%H:%M:%S")  # Extracting time from DateTime
-# Cleaner daily graph
-plot_ly(house.day.by15, 
-        x = ~house.day.by15$Time, 
-        y = ~house.day.by15$Sub_metering_1, 
-        name = 'Kitchen', 
-        type = 'scatter', 
-        mode = 'lines') %>%
-  add_trace(y = ~house.day.by15$Sub_metering_2, name = 'Laundry Room', mode = 'lines') %>%
-  add_trace(y = ~house.day.by15$Sub_metering_3, name = 'Water Heater & AC', mode = 'lines') %>%
-  layout(title = "Power Consumption January 11th, 2007",
-         xaxis = list(title = "Time", tickangle = 45),
-         yaxis = list(title = "Power (watt-hours)"))
-
-## Group data in periods
-bylist <- c()
-timelist <- list("15 mins", "hour", "day", "week", "month", "year")
-for (i in timelist){
-bylist[[i]]  <- newDF.nona %>% group_by(cut(DateTime, i)) %>%
-    dplyr::summarize_at(vars("Sub_metering_1","Sub_metering_2","Sub_metering_3",
-                             "global_active_power", "global_reactive_power", "non_subbed"), funs(sum))  
-colnames(bylist[[i]])[1] <- "DateTime"
-}
-bylist[[6]]$DateTime <- c('2006','2007','2008','2009','2010')
-bylist[[6]]
+# Save it to a file
+saveRDS(plotly.dbyh, "pdbyh.rds")
 
 #Yearly plot by 
 colors <- c('rgb(211,94,96)', 'rgb(128,133,133)', 'rgb(144,103,167)', 'rgb(171,104,87)', 'rgb(114,147,203)')  
@@ -235,6 +230,10 @@ plotly.yearly <- bylist[[6]] %>% plot_ly(x = ~bylist[[6]]$DateTime,
          xaxis = list(title = "Years"),
          yaxis = list (title = "Power (watt-hours)"))
 plotly.yearly
+
+# Save it to a file
+saveRDS(plotly.yearly, "pyearly.rds")
+
 # Gather yearly totals for pie-chart
 by.year.gathered <- bylist[[6]] %>% gather(key = "Sub_meter",
                                        value = "Reading",
@@ -251,13 +250,15 @@ plotly.pie <- by.year.pie %>% plot_ly(labels= factor(c("Energy Lost",
                         insidetextfont = list(color = '#FFFFFF'),
                         hoverinfo = 'text',
                         text = ~paste(round(Reading/1000, 2), 'kWh'),
-                        marker = list(colors = colors,
-                                      line = list(color = '#FFFFFF', width = 1)),
+                      #  marker = list(colors = colors,
+                      #               line = list(color = '#FFFFFF', width = 1)),
                         showlegend = FALSE) %>%
   layout(title= " Consumption per Submeter <br> (Dec 2006 - Nov 2010)",
          xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
          yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
 plotly.pie
+# Save it to a file
+saveRDS(plotly.pie, "ppie.rds")
 
 ## Graph for average consumption for weekdays
 newDF.nona$weekday <- weekdays(newDF.nona$DateTime)
@@ -324,6 +325,8 @@ plotly.mbyd <- plot_ly(house.month, x = ~house.month$DateTime,
          xaxis = list(title = "Days"),
          yaxis = list (title = "Power (Kwh)"))
 plotly.mbyd
+# Save it to a file
+saveRDS(plotly.mbyd, "pmbyd.rds")
 
 plotly.wbyd <- plot_ly(house.month[20:26,], x = ~house.month[20:26,]$DateTime,
                        y = ~house.month$Sub_metering_1/ 1000,
@@ -338,6 +341,7 @@ plotly.wbyd <- plot_ly(house.month[20:26,], x = ~house.month[20:26,]$DateTime,
          xaxis = list(title = "Days"),
          yaxis = list (title = "Power (Kwh)"))
 plotly.wbyd
+saveRDS(plotly.wbyd, "pwbyd.rds")
 
 # ## Polar visualization by month
 # # Time series for monthly total power usage by year
